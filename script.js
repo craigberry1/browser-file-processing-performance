@@ -9,7 +9,7 @@ startWorkerBtn.addEventListener('click', () => {
             outputP.textContent = event.data;
         }
 
-        worker.postMessage('Hello');
+        worker.postMessage({ fibCount: 42});
 
     } else {
         outputP.textContent = 'Web workers are not supported by this browser'
