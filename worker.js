@@ -1,6 +1,3 @@
-const persistWorker = new Worker('persist-worker.js')
-
-let fileCnt = 1;
 
 self.onmessage = function workerAcceptMessage(event) {
     const type = event.data.type;
@@ -16,18 +13,15 @@ self.onmessage = function workerAcceptMessage(event) {
     }
 }
 
-
 function parseFile(file) {
     const reader = new FileReader();
 
     reader.onload = (e) => {
         const arrayBuffer = e.target.result;
-        persistWorker.postMessage(arrayBuffer)
         self.postMessage({
-            type: 'done',
-            fileCnt,
+            type: 'array-buffer',
+            arrayBuffer,
         });
-        fileCnt++;
     }
     reader.readAsArrayBuffer(file);
 }

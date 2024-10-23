@@ -1,42 +1,65 @@
+// html elements
+const workerCntInput = document.getElementById('worker-cnt-input')
+workerCntInput.value = window.navigator.hardwareConcurrency
 const fileInput = document.getElementById('file-input');
 const startWorkerBtn = document.getElementById('start-worker-btn');
 const outputP = document.getElementById('output-p');
 const outputList = document.getElementById('output-list');
 
+// state
+const persistWorker = new Worker('persist-worker.js');
+let parserWorkerPool = [];
+let totalFileCnt = 0;
+let processedFileCnt = 0;
+let startTime = 0;
 
 startWorkerBtn.addEventListener('click', () => {
-    if (!window.worker) {
-        const start = performance.now();
-        const worker = new Worker('worker.js');
+    persistWorker.postMessage({type:'clear'});
+    startTime = performance.now();
 
-        worker.onmessage = (event) => {
-            const type = event.data.type;
-            if (type === 'done') {
-                const time = getTimestamp();
-                outputList.textContent = time + ': Processed ' + event.data.fileCnt + ' files';
-            }
-        }
+    const workerCnt = workerCntInput.value;
+    parserWorkerPool.forEach(worker => worker.terminate());
+    parserWorkerPool = createWorkerPool(workerCnt, persistWorker);
 
-        // Get the file from the input
-        const files = fileInput.files;
+    // Get the file from the input
+    const files = fileInput.files;
 
-        worker.postMessage({
-            type: 'files',
-            files
-        })
+    // reset count
+    totalFileCnt = files.length;
+    processedFileCnt = 0;
 
-        // for (let i = 0; i < files.length; i++) {
-        //     const file = files[i];
-        //
-        //     worker.postMessage({
-        //         type: 'file',
-        //         file,
-        //     });
-        // }
-    } else {
-        outputP.textContent = 'Web workers are not supported by this browser'
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const workerIdx = i % workerCnt;
+
+        parserWorkerPool[workerIdx].postMessage({
+            type: 'file',
+            file,
+        });
     }
 });
+
+
+function createWorkerPool(workerCnt, persistWorker) {
+    const workers = [];
+    for (let i = 0; i < workerCnt; i++) {
+        const worker = new Worker('worker.js');
+        worker.onmessage = function parserOnMessage(event) {
+            if (event.data.type === 'array-buffer') {
+                processedFileCnt++;
+                persistWorker.postMessage(event.data.arrayBuffer);
+            }
+            if (processedFileCnt === totalFileCnt) {
+                const time = performance.now() - startTime;
+                const logItem = document.createElement("li");
+                logItem.textContent = totalFileCnt + ' files, ' + time + 'ms, ' + workerCnt + ' workers';
+                outputList.prepend(logItem);
+            }
+        };
+        workers.push(worker);
+    }
+    return workers;
+}
 
 
 // UTILS

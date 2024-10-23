@@ -1,8 +1,9 @@
-data = [];
+let data = [];
 
 self.onmessage = function persistAcceptEvent(event) {
-    if (event.data) {
-        self.postMessage('persist-received');
+    if (event.data.type === 'clear') {
+        data = [];
+    } else if (event.data) {
         data.push(event.data)
     }
 }
