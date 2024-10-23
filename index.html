@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Performance Testing</title>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="db.js"></script>
 </head>
 <body>
     <h1>Web Worker Performance Testing</h1>
-    <input type="number" id="worker-cnt-input" value=${>
+    <input type="number" id="worker-cnt-input">
     <input type="file" id="file-input" multiple />
     <button id="start-worker-btn">Start Worker</button>
     <p id="output-p">

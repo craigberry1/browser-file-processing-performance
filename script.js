@@ -6,20 +6,35 @@ const startWorkerBtn = document.getElementById('start-worker-btn');
 const outputP = document.getElementById('output-p');
 const outputList = document.getElementById('output-list');
 
+// worker
+// const persistWorker = new Worker('persist-worker.js');
+// persistWorker.onmessage = event => {
+//     if (event.data.type === 'committed') {
+//         processedFileCnt++;
+//         if (processedFileCnt === totalFileCnt) {
+//             const time = Math.round(performance.now() - startTime);
+//             const logItem = document.createElement("li");
+//             logItem.textContent = totalFileCnt + ' files, ' + time + 'ms, ' + workerCntInput.value + ' workers';
+//             outputList.prepend(logItem);
+//         }
+//     }
+// }
+
 // state
-const persistWorker = new Worker('persist-worker.js');
 let parserWorkerPool = [];
 let totalFileCnt = 0;
 let processedFileCnt = 0;
 let startTime = 0;
 
 startWorkerBtn.addEventListener('click', () => {
-    persistWorker.postMessage({type:'clear'});
-    startTime = performance.now();
+    // persistWorker.postMessage({type:'clear'});
+
 
     const workerCnt = workerCntInput.value;
     parserWorkerPool.forEach(worker => worker.terminate());
-    parserWorkerPool = createWorkerPool(workerCnt, persistWorker);
+    parserWorkerPool = createWorkerPool(workerCnt);
+
+    startTime = performance.now();
 
     // Get the file from the input
     const files = fileInput.files;
@@ -33,7 +48,7 @@ startWorkerBtn.addEventListener('click', () => {
         const workerIdx = i % workerCnt;
 
         parserWorkerPool[workerIdx].postMessage({
-            type: 'file',
+            type: 'persist',
             file,
         });
     }
@@ -46,9 +61,12 @@ function createWorkerPool(workerCnt, persistWorker) {
         const worker = new Worker('worker.js');
         worker.onmessage = function parserOnMessage(event) {
             if (event.data.type === 'array-buffer') {
-                processedFileCnt++;
                 persistWorker.postMessage(event.data.arrayBuffer);
             }
+            else if (event.data.type === 'committed') {
+                processedFileCnt++;
+            }
+
             if (processedFileCnt === totalFileCnt) {
                 const time = performance.now() - startTime;
                 const logItem = document.createElement("li");
