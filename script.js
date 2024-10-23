@@ -24,7 +24,6 @@ startWorkerBtn.addEventListener('click', () => {
     } else { 
         outputP.textContent = 'Web workers are not supported by this browser'
     }
-    outputList.prepend('done');
 });
 
 
