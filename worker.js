@@ -1,22 +1,40 @@
+const persistWorker = new Worker('persist-worker.js')
 
-self.onmessage = (event) => {
-    console.log('Worker received:', event.data);
+let fileCnt = 1;
 
-    if (event.data) {
-        self.postMessage('Received file reference');
-        parseFile(event.data);
+self.onmessage = function workerAcceptMessage(event) {
+    const type = event.data.type;
+    switch (type) {
+        case 'file':
+            parseFile(event.data.file);
+            break;
+        case 'files':
+            parseFiles(event.data.files);
+            break;
+        default:
+            break;
     }
 }
+
 
 function parseFile(file) {
     const reader = new FileReader();
 
     reader.onload = (e) => {
         const arrayBuffer = e.target.result;
-        self.postMessage('Sending file');
-        self.postMessage(arrayBuffer);
+        persistWorker.postMessage(arrayBuffer)
+        self.postMessage({
+            type: 'done',
+            fileCnt,
+        });
+        fileCnt++;
     }
-
-    self.postMessage('Reading file');
     reader.readAsArrayBuffer(file);
+}
+
+function parseFiles(files) {
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        parseFile(file);
+    }
 }
