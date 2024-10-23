@@ -1,20 +1,22 @@
 
-function fib(count) {
-    if (count <= 1) {
-        return 1;
-    } else {
-        return fib(count - 2) + fib(count - 1);
-    }
-}
-
 self.onmessage = (event) => {
     console.log('Worker received:', event.data);
 
-    const fibCount = event.data.fibCount;
+    if (event.data) {
+        self.postMessage('Received file reference');
+        parseFile(event.data);
+    }
+}
 
-    setTimeout(() => self.postMessage('Hello from timeout'), 2000);
+function parseFile(file) {
+    const reader = new FileReader();
 
-    const fibResult = fib(fibCount);
+    reader.onload = (e) => {
+        const arrayBuffer = e.target.result;
+        self.postMessage('Sending file');
+        self.postMessage(arrayBuffer);
+    }
 
-    self.postMessage('Hello back from the worker: ' + fibResult);
+    self.postMessage('Reading file');
+    reader.readAsArrayBuffer(file);
 }
