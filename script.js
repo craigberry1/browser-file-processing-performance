@@ -10,6 +10,18 @@ parseWorkerCntInput.value = window.navigator.hardwareConcurrency / 2
 const persistWorkerCntInput = document.getElementById('persist-worker-cnt-input')
 persistWorkerCntInput.value = window.navigator.hardwareConcurrency / 2
 
+const combinedCheckbox = document.getElementById('combined-input');
+combinedCheckbox.addEventListener('change', e => {
+    if (combinedCheckbox.checked) {
+        persistWorkerCntInput.disabled = true;
+        persistWorkerCntInput.value = 0;
+    } else {
+        persistWorkerCntInput.disabled = false;
+        persistWorkerCntInput.value = 2;
+    }
+})
+
+
 const fileInput = document.getElementById('file-input');
 const startWorkerBtn = document.getElementById('start-worker-btn');
 const resetWorkerBtn = document.getElementById('reset-worker-btn');
@@ -64,6 +76,7 @@ resetWorkerBtn.addEventListener('click', () => {
 })
 
 function processFiles(files, parseWorkerCnt) {
+    const combinedEnabled = combinedCheckbox.checked;
     const batchedParserEnabled = batchedParserCheckbox.checked;
 
     function chunkFileList(fileList, numChunks) {
@@ -82,6 +95,7 @@ function processFiles(files, parseWorkerCnt) {
             parseWorkerPool[workerIdx].postMessage({
                 type: 'files',
                 files,
+                persist: combinedEnabled,
             })
         })
     } else {
@@ -92,6 +106,7 @@ function processFiles(files, parseWorkerCnt) {
             parseWorkerPool[workerIdx].postMessage({
                 type: 'file',
                 file,
+                persist: combinedEnabled,
             });
         }
     }
@@ -115,8 +130,8 @@ function createParseWorker(persistWorkerPool, workerCnt) {
             persistWorker.postMessage(event.data.arrayBuffer);
         } else if (event.data.type === 'committed') {
             processedFileCnt++;
+            handleJobFinished(workerCnt);
         }
-        handleJobFinished(workerCnt);
     };
     return parseWorker;
 }

@@ -8,13 +8,13 @@ db.version(1).stores({
     file: '++id'
 });
 
-self.onmessage = function persistAcceptEvent(event) {
+self.onmessage = async function persistAcceptEvent(event) {
     if (event.data.type === 'clear') {
         // data = [];
         db.file.clear();
     } else if (event.data) {
         // data.push(event.data);
-        db.file.add(event.data)
+        await db.file.add(event.data)
         self.postMessage({ type: 'committed' });
     }
 }
