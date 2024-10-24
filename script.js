@@ -2,6 +2,9 @@
 const hardwareConcurrency = document.getElementById('hardware-concurrency-p');
 hardwareConcurrency.textContent += window.navigator.hardwareConcurrency
 
+const batchedParserCheckbox = document.getElementById('batch-parser-input');
+
+
 const parseWorkerCntInput = document.getElementById('parse-worker-cnt-input')
 parseWorkerCntInput.value = window.navigator.hardwareConcurrency / 2
 const persistWorkerCntInput = document.getElementById('persist-worker-cnt-input')
@@ -35,14 +38,18 @@ let persistWorkerPool = [];
 let totalFileCnt = 0;
 let processedFileCnt = 0;
 let startTime = 0;
+let needsReset = true;
 
 startWorkerBtn.addEventListener('click', () => {
     const parseWorkerCnt = parseWorkerCntInput.value;
     const persistWorkerCnt = persistWorkerCntInput.value;
     const files = fileInput.files;
 
-    reset(parseWorkerCnt, persistWorkerCnt, files.length);
+    if (needsReset) {
+        reset(parseWorkerCnt, persistWorkerCnt, files.length);
+    }
 
+    needsReset = true;
     startTime = performance.now();
 
     processFiles(files, parseWorkerCnt);
@@ -53,35 +60,58 @@ resetWorkerBtn.addEventListener('click', () => {
     const persistWorkerCnt = persistWorkerCntInput.value;
     const files = fileInput.files;
 
-    resetWorkerPools(parseWorkerCnt, persistWorkerCnt, files.length)
+    reset(parseWorkerCnt, persistWorkerCnt, files.length)
 })
 
 function processFiles(files, parseWorkerCnt) {
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const workerIdx = i % parseWorkerCnt;
+    const batchedParserEnabled = batchedParserCheckbox.checked;
 
-        parseWorkerPool[workerIdx].postMessage({
-            type: 'file',
-            file,
-        });
+    function chunkFileList(fileList, numChunks) {
+        const files = Array.from(fileList);
+        const chunkSize = Math.ceil(files.length / numChunks);
+        return Array.from({ length: numChunks }, (_, i) =>
+            files.slice(i * chunkSize, (i + 1) * chunkSize)
+        );
+    }
+
+
+    if (batchedParserEnabled) {
+        const fileChunks = chunkFileList(files, parseWorkerCnt);
+        fileChunks.forEach((files, i) => {
+            const workerIdx = i % parseWorkerCnt;
+            parseWorkerPool[workerIdx].postMessage({
+                type: 'files',
+                files,
+            })
+        })
+    } else {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const workerIdx = i % parseWorkerCnt;
+
+            parseWorkerPool[workerIdx].postMessage({
+                type: 'file',
+                file,
+            });
+        }
     }
 }
 
 function createParseWorkerPool(workerCnt, persistWorkerPool) {
     const workers = [];
     for (let i = 0; i < workerCnt; i++) {
-        const persister = persistWorkerPool[i % persistWorkerPool.length]
-        const worker = createParseWorker(persister, workerCnt);
+        const worker = createParseWorker(persistWorkerPool, workerCnt);
         workers.push(worker);
     }
     return workers;
 }
 
-function createParseWorker(persistWorker, workerCnt) {
+function createParseWorker(persistWorkerPool, workerCnt) {
     const parseWorker = new Worker('parse-worker.js');
     parseWorker.onmessage = function parserOnMessage(event) {
         if (event.data.type === 'array-buffer') {
+            // randomize persists
+            const persistWorker = persistWorkerPool[Math.floor(Math.random() * persistWorkerPool.length)];
             persistWorker.postMessage(event.data.arrayBuffer);
         } else if (event.data.type === 'committed') {
             processedFileCnt++;
@@ -95,7 +125,7 @@ function handleJobFinished() {
     if (processedFileCnt === totalFileCnt) {
         const time = Math.round(performance.now() - startTime);
         const logItem = document.createElement("li");
-        logItem.textContent = totalFileCnt + ' files, ' + time + 'ms, ' + parseWorkerCntInput.value + ' workers';
+        logItem.textContent = totalFileCnt + ' files, ' + parseWorkerCntInput.value + ' parse threads, ' + persistWorkerCntInput.value + ' persist threads, ' + time + 'ms, ';
         outputList.prepend(logItem);
     }
 }
@@ -126,6 +156,7 @@ function reset(parseWorkerCnt, persistWorkerCnt, total) {
     resetDb();
     resetWorkerPools(parseWorkerCnt, persistWorkerCnt);
     resetState(total);
+    needsReset = false;
 }
 
 function resetDb() {
