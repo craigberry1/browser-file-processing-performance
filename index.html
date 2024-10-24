@@ -9,12 +9,25 @@
 </head>
 <body>
     <h1>Web Worker Performance Testing</h1>
-    <input type="number" id="worker-cnt-input">
+    <p id="hardware-concurrency-p">Hardware Concurrency: </p>
+    <div class="worker-config">
+        <label for="dynamic-db-input">Isolated Schema</label>
+        <input type="checkbox" id="dynamic-db-input">
+        <label for="persist-worker-cnt-input">Persist Threads:</label>
+        <input type="number" id="persist-worker-cnt-input">
+        <label for="parse-worker-cnt-input">Parsing Threads:</label>
+        <input type="number" id="parse-worker-cnt-input">
+    </div>
     <input type="file" id="file-input" multiple />
     <button id="start-worker-btn">Start Worker</button>
+    <button id="reset-worker-btn">Reset Workers</button>
+    <h3>Run Log</h3>
     <p id="output-p">
         <ul id="output-list"></ul>
     </p>
+
+    <h3>Active Workers</h3>
+    <ul id="workers-list"></ul>
 
     <script src="script.js"></script>
 </body>
